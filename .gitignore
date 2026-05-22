@@ -1,0 +1,29 @@
+# Build output
+bin/
+
+# Config with secrets
+config.toml
+*.env
+.env
+
+# Key storage (contains live API keys)
+keys.json
+*.keys.json
+
+# Internal planning docs
+docs/
+
+# Go
+*.test
+*.out
+vendor/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

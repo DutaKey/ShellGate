@@ -1,0 +1,23 @@
+[server]
+host = "0.0.0.0"
+port = 8080
+read_timeout = "30s"
+write_timeout = "120s"
+
+[auth]
+# Secret for admin endpoints (/admin/keys)
+# Change this before deploying!
+admin_secret = "change-me-admin-secret"
+# Path to JSON file where API keys are stored
+keys_file = "keys.json"
+
+[executor]
+codex_binary = "codex"
+# read-only | workspace-write | danger-full-access
+default_sandbox = "read-only"
+timeout = "120s"
+working_dir = ""
+
+[logging]
+level = "info"
+format = "json"
