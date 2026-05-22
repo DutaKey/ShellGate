@@ -7,6 +7,20 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [Unreleased]
+
+### Added
+- ShellGate CLI with subcommands: `init`, `serve`, `login`, `keys`
+- `shellgate init` — interactive setup wizard, generates config.toml
+- `shellgate login <provider>` — passthrough OAuth login for CLI providers
+- `shellgate keys create/list/revoke` — key management from terminal
+- `POST /v1/responses` — OpenAI Responses API for N8N AI Agent / LangChain
+- `GET /v1/models/:id` — model lookup endpoint
+- One-line installer script (`install.sh`)
+- Cross-platform release builds via `make release`
+
+---
+
 ## [0.1.0] - 2026-05-22
 
 ### Added

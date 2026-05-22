@@ -1,112 +1,98 @@
 # ShellGate
 
-OpenAI-compatible API proxy for the [Codex CLI](https://github.com/openai/codex). Wrap your local CLI session into a drop-in REST API — no extra API keys required.
+Turn locally authenticated CLI tools into an OpenAI-compatible REST API.
 
-## How it works
+Log in to a CLI tool once. ShellGate proxies any HTTP client through it — no separate API keys, no extra billing accounts.
 
 ```
-Your App (OpenAI SDK)
-       │
-       │  POST /v1/chat/completions
-       │  Authorization: Bearer sk-sg-xxxx
-       ▼
-   ShellGate  ──────────────────────────────────────────┐
-       │                                                 │
-       │  codex exec --json "<prompt>"                   │
-       ▼                                                 │
-  Codex CLI (saved OAuth session)           Admin API    │
-       │                                  /admin/keys    │
-       │  JSONL events                                   │
-       ▼                                                 │
-  OpenAI-compatible response ◄─────────────────────────┘
+Your App  →  POST /v1/chat/completions  →  ShellGate  →  codex exec "..."
+(N8N, LangChain, any OpenAI SDK)              ↑
+                                        your CLI login
 ```
 
-One Codex account. Multiple projects. Each project gets its own ShellGate API key.
+## Supported Providers
 
-## Requirements
+| Provider | CLI | Status |
+|----------|-----|--------|
+| [Codex](https://github.com/openai/codex) | `codex` | ✅ Supported |
+| Claude CLI | `claude` | 🔜 Planned |
+| Others | — | 🔜 Planned |
 
-- Go 1.21+
-- [Codex CLI](https://github.com/openai/codex) installed and authenticated (`codex login`)
+## Install
 
-## Installation
+**One-line (Linux/macOS):**
+```bash
+curl -fsSL https://raw.githubusercontent.com/DutaKey/ShellGate/main/install.sh | sh
+```
+
+**Homebrew:** *(coming soon)*
+```bash
+brew install dutakey/tap/shellgate
+```
 
 **From source:**
 ```bash
-git clone https://github.com/dutakey/shellgate
-cd shellgate
-make build
+git clone https://github.com/DutaKey/ShellGate
+cd ShellGate && make build
 ```
 
-**Docker:**
+## Quick Start
+
 ```bash
-docker build -t shellgate .
+# 1. Create config
+shellgate init
+
+# 2. Log in to your CLI provider
+shellgate login codex
+
+# 3. Start the API server
+shellgate serve
+
+# 4. Create an API key for your project
+shellgate keys create myproject
 ```
 
-## Setup
+Done. Use `http://localhost:8080/v1` as your OpenAI base URL.
 
-**1. Authenticate Codex CLI on your server:**
-```bash
-codex login
+## CLI Reference
+
+```
+shellgate init                  Interactive setup wizard
+shellgate login <provider>      Authenticate a CLI provider
+shellgate serve                 Start the API server
+shellgate keys create <name>    Create a new API key
+shellgate keys list             List all keys
+shellgate keys revoke <id>      Revoke a key
 ```
 
-**2. Create config:**
-```bash
-cp config.example.toml config.toml
+**Flags:**
+```
+-c, --config string   config file path (default "config.toml")
 ```
 
-Edit `config.toml`:
-```toml
-[auth]
-admin_secret = "your-strong-admin-secret"
-```
+## API
 
-**3. Start ShellGate:**
-```bash
-./bin/shellgate -config config.toml
-# or
-make run
-```
+ShellGate is a drop-in replacement for the OpenAI API.
 
-**4. Create API keys for your projects:**
-```bash
-# Create key for N8N
-curl -X POST http://localhost:8080/admin/keys \
-  -H "Authorization: Bearer your-strong-admin-secret" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "n8n"}'
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/v1/chat/completions` | Chat completions (streaming + non-streaming) |
+| `POST` | `/v1/responses` | Responses API (N8N AI Agent, LangChain) |
+| `GET` | `/v1/models` | List available models |
+| `GET` | `/v1/models/:id` | Get model by ID |
+| `GET` | `/health` | Health check |
+| `POST` | `/admin/keys` | Create API key |
+| `GET` | `/admin/keys` | List API keys |
+| `DELETE` | `/admin/keys/:id` | Revoke API key |
 
-# Create key for Laravel
-curl -X POST http://localhost:8080/admin/keys \
-  -H "Authorization: Bearer your-strong-admin-secret" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "laravel"}'
-```
-
-Response:
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000",
-  "key": "sk-sg-a1b2c3d4...",
-  "name": "n8n",
-  "created_at": "2026-01-01T00:00:00Z"
-}
-```
-
-## Usage
-
-ShellGate is a drop-in replacement for the OpenAI API. Point any OpenAI-compatible client to your ShellGate instance.
+## Usage Examples
 
 **curl:**
 ```bash
 curl http://localhost:8080/v1/chat/completions \
-  -H "Authorization: Bearer sk-sg-your-key" \
+  -H "Authorization: Bearer <your-key>" \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "codex",
-    "messages": [
-      {"role": "user", "content": "Write a Go hello world"}
-    ]
-  }'
+  -d '{"model":"gpt-5.4","messages":[{"role":"user","content":"hello"}]}'
 ```
 
 **Python (OpenAI SDK):**
@@ -114,48 +100,17 @@ curl http://localhost:8080/v1/chat/completions \
 from openai import OpenAI
 
 client = OpenAI(
-    api_key="sk-sg-your-key",
+    api_key="<your-shellgate-key>",
     base_url="http://localhost:8080/v1"
 )
 
 response = client.chat.completions.create(
-    model="codex",
-    messages=[{"role": "user", "content": "Write a Go hello world"}]
+    model="gpt-5.4",
+    messages=[{"role": "user", "content": "hello"}]
 )
 ```
 
-**Streaming:**
-```python
-stream = client.chat.completions.create(
-    model="codex",
-    messages=[{"role": "user", "content": "Explain Go channels"}],
-    stream=True
-)
-for chunk in stream:
-    print(chunk.choices[0].delta.content or "", end="")
-```
-
-**N8N:** Use the OpenAI node, set `Base URL` to `http://your-server:8080/v1`.
-
-## API Reference
-
-### OpenAI-Compatible Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/v1/chat/completions` | Chat completions (streaming + non-streaming) |
-| `GET` | `/v1/models` | List available models |
-| `GET` | `/health` | Health check |
-
-### Admin Endpoints
-
-All admin endpoints require `Authorization: Bearer <admin_secret>`.
-
-| Method | Path | Body | Description |
-|--------|------|------|-------------|
-| `POST` | `/admin/keys` | `{"name": "string"}` | Create API key |
-| `GET` | `/admin/keys` | — | List all keys |
-| `DELETE` | `/admin/keys/:id` | — | Revoke key by ID |
+**N8N:** OpenAI node or AI Agent node → set Base URL to `http://<host>:8080/v1`.
 
 ## Configuration
 
@@ -164,33 +119,30 @@ All admin endpoints require `Authorization: Bearer <admin_secret>`.
 host = "0.0.0.0"
 port = 8080
 read_timeout = "30s"
-write_timeout = "120s"     # increase for long-running codex tasks
+write_timeout = "120s"
 
 [auth]
-admin_secret = ""          # required — protects /admin/* endpoints
-keys_file = "keys.json"    # where API keys are stored
+admin_secret = ""        # required — protects /admin/* endpoints
+keys_file = "keys.json"
 
 [executor]
-codex_binary = "codex"     # full path if not in $PATH
-default_sandbox = "read-only"   # read-only | workspace-write | danger-full-access
+codex_binary = "codex"
+default_sandbox = "read-only"
 timeout = "120s"
-working_dir = ""           # default: inherit ShellGate cwd
 
 [logging]
-level = "info"             # debug | info | warn | error
-format = "json"            # json | text
+level = "info"   # debug | info | warn | error
+format = "json"  # json | text
 ```
 
-All fields can be overridden via environment variables:
+Environment variable overrides:
 
 | Variable | Config field |
 |----------|-------------|
 | `SHELLGATE_PORT` | `server.port` |
-| `SHELLGATE_HOST` | `server.host` |
 | `SHELLGATE_ADMIN_SECRET` | `auth.admin_secret` |
 | `SHELLGATE_KEYS_FILE` | `auth.keys_file` |
 | `SHELLGATE_EXECUTOR_CODEX_BINARY` | `executor.codex_binary` |
-| `SHELLGATE_EXECUTOR_SANDBOX` | `executor.default_sandbox` |
 | `SHELLGATE_LOG_LEVEL` | `logging.level` |
 
 ## Docker
@@ -199,23 +151,11 @@ All fields can be overridden via environment variables:
 docker run -d \
   -p 8080:8080 \
   -v $(pwd)/data:/app/data \
+  -v $HOME/.codex:/root/.codex:ro \
   -e SHELLGATE_ADMIN_SECRET=your-secret \
   -e SHELLGATE_KEYS_FILE=/app/data/keys.json \
-  shellgate
+  ghcr.io/dutakey/shellgate:latest
 ```
-
-Mount `/app/data` to persist keys across container restarts.
-
-> **Note:** Codex CLI must be authenticated. Mount your `~/.codex` credentials into the container:
-> ```bash
-> -v $HOME/.codex:/root/.codex:ro
-> ```
-
-## Notes
-
-- `usage` tokens in responses are always `-1` — Codex CLI does not expose token counts
-- Each request spawns a new `codex exec` process (stateless)
-- Conversation history is handled by concatenating `messages[]` into a single prompt
 
 ## License
 
