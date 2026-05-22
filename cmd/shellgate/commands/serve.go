@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -18,38 +19,85 @@ import (
 )
 
 func newServeCmd() *cobra.Command {
-	return &cobra.Command{
+	var detach bool
+
+	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Start the ShellGate API server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load(configPath)
-			if err != nil {
-				return fmt.Errorf("load config: %w", err)
+			if detach {
+				return runDetached()
 			}
-
-			logger := buildLogger(cfg.Logging.Level, cfg.Logging.Format)
-			defer logger.Sync()
-
-			keys, err := store.NewKeyStore(cfg.Auth.KeysFile)
-			if err != nil {
-				return fmt.Errorf("load key store: %w", err)
-			}
-
-			srv := api.NewServer(cfg, keys, logger)
-
-			quit := make(chan os.Signal, 1)
-			signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
-			go func() {
-				if err := srv.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-					logger.Fatal("server error", zap.Error(err))
-				}
-			}()
-
-			<-quit
-			return srv.Shutdown(15 * time.Second)
+			return runForeground()
 		},
 	}
+
+	cmd.Flags().BoolVarP(&detach, "detach", "d", false, "run in background (detached)")
+	return cmd
+}
+
+func runForeground() error {
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	logger := buildLogger(cfg.Logging.Level, cfg.Logging.Format)
+	defer logger.Sync()
+
+	keys, err := store.NewKeyStore(cfg.Auth.KeysFile)
+	if err != nil {
+		return fmt.Errorf("load key store: %w", err)
+	}
+
+	srv := api.NewServer(cfg, keys, logger)
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		if err := srv.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Fatal("server error", zap.Error(err))
+		}
+	}()
+
+	<-quit
+	return srv.Shutdown(15 * time.Second)
+}
+
+func runDetached() error {
+	// re-exec self without -d, redirect output to log file
+	logFile := "shellgate.log"
+	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("open log file: %w", err)
+	}
+	defer f.Close()
+
+	self, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("resolve executable: %w", err)
+	}
+
+	args := []string{"serve", "--config", configPath}
+	proc := exec.Command(self, args...)
+	proc.Stdout = f
+	proc.Stderr = f
+	proc.Stdin = nil
+
+	// detach from parent process group
+	proc.SysProcAttr = newSysProcAttr()
+
+	if err := proc.Start(); err != nil {
+		return fmt.Errorf("start background process: %w", err)
+	}
+
+	pid := proc.Process.Pid
+	fmt.Printf("ShellGate running in background (PID %d)\n", pid)
+	fmt.Printf("Logs: %s\n", logFile)
+	fmt.Printf("Stop: shellgate stop\n")
+
+	return os.WriteFile("shellgate.pid", []byte(fmt.Sprintf("%d", pid)), 0644)
 }
 
 func buildLogger(level, format string) *zap.Logger {

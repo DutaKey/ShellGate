@@ -18,6 +18,7 @@ into an OpenAI-compatible REST API. No extra API keys needed — use your existi
 
 	root.AddCommand(
 		newServeCmd(),
+		newStopServerCmd(),
 		newInitCmd(),
 		newLoginCmd(),
 		newKeysCmd(),
