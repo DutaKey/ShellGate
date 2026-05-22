@@ -37,7 +37,7 @@ func (h *ChatHandler) ChatCompletions() http.HandlerFunc {
 		}
 
 		if req.Model == "" {
-			req.Model = "codex"
+			req.Model = "gpt-5.4"
 		}
 
 		prompt := formatter.BuildPrompt(req.Messages)
@@ -49,15 +49,15 @@ func (h *ChatHandler) ChatCompletions() http.HandlerFunc {
 		)
 
 		if req.Stream {
-			h.handleStream(w, r, req.Model, prompt)
+			h.handleStream(w, r, req.Model, prompt, req.ReasoningEffort)
 		} else {
-			h.handleSync(w, r, req.Model, prompt)
+			h.handleSync(w, r, req.Model, prompt, req.ReasoningEffort)
 		}
 	}
 }
 
-func (h *ChatHandler) handleSync(w http.ResponseWriter, r *http.Request, model, prompt string) {
-	content, err := h.exec.Exec(r.Context(), prompt)
+func (h *ChatHandler) handleSync(w http.ResponseWriter, r *http.Request, model, prompt, reasoningEffort string) {
+	content, err := h.exec.Exec(r.Context(), prompt, model, reasoningEffort)
 	if err != nil {
 		h.logger.Error("codex exec failed", zap.Error(err))
 		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("codex exec failed: %s", err.Error()), "upstream_error")
@@ -71,7 +71,7 @@ func (h *ChatHandler) handleSync(w http.ResponseWriter, r *http.Request, model, 
 	json.NewEncoder(w).Encode(resp)
 }
 
-func (h *ChatHandler) handleStream(w http.ResponseWriter, r *http.Request, model, prompt string) {
+func (h *ChatHandler) handleStream(w http.ResponseWriter, r *http.Request, model, prompt, reasoningEffort string) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		writeJSONError(w, http.StatusInternalServerError, "streaming not supported", "internal_error")
@@ -93,7 +93,7 @@ func (h *ChatHandler) handleStream(w http.ResponseWriter, r *http.Request, model
 
 	sendChunk(formatter.BuildFirstChunk(id, model))
 
-	events, errc := h.exec.Stream(r.Context(), prompt)
+	events, errc := h.exec.Stream(r.Context(), prompt, model, reasoningEffort)
 
 	for ev := range events {
 		if ev.Item.Text != "" {

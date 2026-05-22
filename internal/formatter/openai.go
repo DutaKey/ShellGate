@@ -114,16 +114,3 @@ func BuildPrompt(messages []types.Message) string {
 	return result
 }
 
-func ModelsResponse() *types.ModelsResponse {
-	return &types.ModelsResponse{
-		Object: "list",
-		Data: []types.Model{
-			{
-				ID:      "codex",
-				Object:  "model",
-				Created: 1700000000,
-				OwnedBy: "openai-codex-cli",
-			},
-		},
-	}
-}

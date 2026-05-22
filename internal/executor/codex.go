@@ -31,7 +31,7 @@ func NewCodexExecutor(binary, sandbox, workingDir string) *CodexExecutor {
 
 // Stream spawns `codex exec --json <prompt>` and emits CodexItemEvents.
 // Channel closed when process exits or ctx cancelled.
-func (e *CodexExecutor) Stream(ctx context.Context, prompt string) (<-chan *types.CodexItemEvent, <-chan error) {
+func (e *CodexExecutor) Stream(ctx context.Context, prompt, model, reasoningEffort string) (<-chan *types.CodexItemEvent, <-chan error) {
 	events := make(chan *types.CodexItemEvent, 32)
 	errc := make(chan error, 1)
 
@@ -39,7 +39,7 @@ func (e *CodexExecutor) Stream(ctx context.Context, prompt string) (<-chan *type
 		defer close(events)
 		defer close(errc)
 
-		cmd := e.buildCmd(ctx, prompt)
+		cmd := e.buildCmd(ctx, prompt, model, reasoningEffort)
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			errc <- fmt.Errorf("stdout pipe: %w", err)
@@ -104,8 +104,8 @@ func (e *CodexExecutor) Stream(ctx context.Context, prompt string) (<-chan *type
 }
 
 // Exec runs codex exec and collects full response (non-streaming)
-func (e *CodexExecutor) Exec(ctx context.Context, prompt string) (string, error) {
-	events, errc := e.Stream(ctx, prompt)
+func (e *CodexExecutor) Exec(ctx context.Context, prompt, model, reasoningEffort string) (string, error) {
+	events, errc := e.Stream(ctx, prompt, model, reasoningEffort)
 
 	var parts []string
 	for ev := range events {
@@ -119,8 +119,16 @@ func (e *CodexExecutor) Exec(ctx context.Context, prompt string) (string, error)
 	return strings.Join(parts, ""), nil
 }
 
-func (e *CodexExecutor) buildCmd(ctx context.Context, prompt string) *exec.Cmd {
+func (e *CodexExecutor) buildCmd(ctx context.Context, prompt, model, reasoningEffort string) *exec.Cmd {
 	args := []string{"exec", "--json", "--ephemeral", "--skip-git-repo-check"}
+
+	if model != "" {
+		args = append(args, "--model", model)
+	}
+
+	if reasoningEffort != "" {
+		args = append(args, "-c", "model_reasoning_effort="+reasoningEffort)
+	}
 
 	if e.sandbox != "" && e.sandbox != "read-only" {
 		args = append(args, "--sandbox", e.sandbox)

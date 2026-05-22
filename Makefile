@@ -1,6 +1,6 @@
 BINARY := shellgate
 BUILD_DIR := bin
-GO := go
+GO := $(shell which go 2>/dev/null || echo /home/dxtz/go/bin/go)
 GOFLAGS := -ldflags="-s -w"
 
 .PHONY: build run dev clean test lint
