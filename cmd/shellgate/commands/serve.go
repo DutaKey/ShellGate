@@ -66,8 +66,7 @@ func runForeground() error {
 }
 
 func runDetached() error {
-	// re-exec self without -d, redirect output to log file
-	logFile := "shellgate.log"
+	logFile := logFilePath()
 	f, err := os.OpenFile(logFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("open log file: %w", err)
@@ -85,7 +84,6 @@ func runDetached() error {
 	proc.Stderr = f
 	proc.Stdin = nil
 
-	// detach from parent process group
 	proc.SysProcAttr = newSysProcAttr()
 
 	if err := proc.Start(); err != nil {
@@ -94,10 +92,11 @@ func runDetached() error {
 
 	pid := proc.Process.Pid
 	fmt.Printf("ShellGate running in background (PID %d)\n", pid)
-	fmt.Printf("Logs: %s\n", logFile)
-	fmt.Printf("Stop: shellgate stop\n")
+	fmt.Printf("Logs:   %s\n", logFile)
+	fmt.Printf("Status: shellgate status\n")
+	fmt.Printf("Stop:   shellgate stop\n")
 
-	return os.WriteFile("shellgate.pid", []byte(fmt.Sprintf("%d", pid)), 0644)
+	return os.WriteFile(pidFilePath(), []byte(fmt.Sprintf("%d", pid)), 0644)
 }
 
 func buildLogger(level, format string) *zap.Logger {

@@ -15,10 +15,10 @@ func newStopServerCmd() *cobra.Command {
 		Use:   "stop",
 		Short: "Stop a background ShellGate server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			pidFile := "shellgate.pid"
+			pidFile := pidFilePath()
 			data, err := os.ReadFile(pidFile)
 			if err != nil {
-				return fmt.Errorf("no PID file found (%s) — is ShellGate running in background?", pidFile)
+				return fmt.Errorf("no PID file found — is ShellGate running in background?")
 			}
 
 			pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
