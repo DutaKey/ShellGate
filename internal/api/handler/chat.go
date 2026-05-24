@@ -13,11 +13,11 @@ import (
 )
 
 type ChatHandler struct {
-	exec   *executor.CodexExecutor
+	exec   executor.Executor
 	logger *zap.Logger
 }
 
-func NewChatHandler(exec *executor.CodexExecutor, logger *zap.Logger) *ChatHandler {
+func NewChatHandler(exec executor.Executor, logger *zap.Logger) *ChatHandler {
 	return &ChatHandler{exec: exec, logger: logger}
 }
 
@@ -59,8 +59,8 @@ func (h *ChatHandler) ChatCompletions() http.HandlerFunc {
 func (h *ChatHandler) handleSync(w http.ResponseWriter, r *http.Request, model, prompt, reasoningEffort string) {
 	content, err := h.exec.Exec(r.Context(), prompt, model, reasoningEffort)
 	if err != nil {
-		h.logger.Error("codex exec failed", zap.Error(err))
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("codex exec failed: %s", err.Error()), "upstream_error")
+		h.logger.Error("exec failed", zap.Error(err))
+		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("exec failed: %s", err.Error()), "upstream_error")
 		return
 	}
 
@@ -95,14 +95,14 @@ func (h *ChatHandler) handleStream(w http.ResponseWriter, r *http.Request, model
 
 	events, errc := h.exec.Stream(r.Context(), prompt, model, reasoningEffort)
 
-	for ev := range events {
-		if ev.Item.Text != "" {
-			sendChunk(formatter.BuildChunk(id, model, ev.Item.Text, nil))
+	for text := range events {
+		if text != "" {
+			sendChunk(formatter.BuildChunk(id, model, text, nil))
 		}
 	}
 
 	if err := <-errc; err != nil {
-		h.logger.Error("codex stream error", zap.Error(err))
+		h.logger.Error("stream error", zap.Error(err))
 		errData, _ := json.Marshal(types.ErrorResponse{
 			Error: types.APIError{
 				Message: err.Error(),

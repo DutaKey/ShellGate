@@ -15,6 +15,12 @@ var providers = map[string]providerDef{
 		statusArgs:  []string{"login", "status"},
 		installHint: "npm install -g @openai/codex",
 	},
+	"kimi": {
+		binary:      "kimi",
+		loginArgs:   []string{"login"},
+		statusArgs:  []string{"--version"},
+		installHint: "see https://moonshotai.github.io/kimi-cli/ for install instructions",
+	},
 }
 
 type providerDef struct {
@@ -31,7 +37,8 @@ func newLoginCmd() *cobra.Command {
 		Long: `Log in to a supported CLI provider so ShellGate can proxy requests through it.
 
 Supported providers:
-  codex    OpenAI Codex CLI`,
+  codex    OpenAI Codex CLI
+  kimi     Moonshot AI Kimi CLI`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]

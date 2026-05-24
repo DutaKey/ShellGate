@@ -16,11 +16,11 @@ import (
 )
 
 type ResponsesHandler struct {
-	exec   *executor.CodexExecutor
+	exec   executor.Executor
 	logger *zap.Logger
 }
 
-func NewResponsesHandler(exec *executor.CodexExecutor, logger *zap.Logger) *ResponsesHandler {
+func NewResponsesHandler(exec executor.Executor, logger *zap.Logger) *ResponsesHandler {
 	return &ResponsesHandler{exec: exec, logger: logger}
 }
 
@@ -60,8 +60,8 @@ func (h *ResponsesHandler) Create() http.HandlerFunc {
 func (h *ResponsesHandler) handleSync(w http.ResponseWriter, r *http.Request, model, prompt, reasoningEffort string) {
 	content, err := h.exec.Exec(r.Context(), prompt, model, reasoningEffort)
 	if err != nil {
-		h.logger.Error("codex exec failed", zap.Error(err))
-		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("codex exec failed: %s", err.Error()), "upstream_error")
+		h.logger.Error("exec failed", zap.Error(err))
+		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("exec failed: %s", err.Error()), "upstream_error")
 		return
 	}
 
@@ -114,18 +114,18 @@ func (h *ResponsesHandler) handleStream(w http.ResponseWriter, r *http.Request, 
 
 	events, errc := h.exec.Stream(r.Context(), prompt, model, reasoningEffort)
 
-	for ev := range events {
-		if ev.Item.Text != "" {
+	for text := range events {
+		if text != "" {
 			send("response.output_text.delta", map[string]interface{}{
 				"type":    "response.output_text.delta",
 				"item_id": msgID, "output_index": 0, "content_index": 0,
-				"delta": ev.Item.Text,
+				"delta": text,
 			})
 		}
 	}
 
 	if err := <-errc; err != nil {
-		h.logger.Error("codex stream error", zap.Error(err))
+		h.logger.Error("stream error", zap.Error(err))
 		send("error", map[string]interface{}{
 			"type": "error", "code": "upstream_error", "message": err.Error(),
 		})

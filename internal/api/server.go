@@ -23,16 +23,22 @@ type Server struct {
 	logger *zap.Logger
 }
 
-func NewServer(cfg *config.Config, keys *store.KeyStore, logger *zap.Logger) *Server {
-	exec := executor.NewCodexExecutor(
-		cfg.Executor.CodexBinary,
-		cfg.Executor.Sandbox,
-		cfg.Executor.WorkingDir,
+func newExecutor(cfg *config.Config) executor.Executor {
+	codex := executor.NewCodexExecutor(cfg.Executor.CodexBinary, cfg.Executor.Sandbox, cfg.Executor.WorkingDir)
+	kimi := executor.NewKimiExecutor(cfg.Executor.KimiBinary, cfg.Executor.WorkingDir)
+
+	return executor.NewRouterExecutor(codex,
+		executor.Route{Prefix: "kimi", Executor: kimi},
 	)
+}
+
+func NewServer(cfg *config.Config, keys *store.KeyStore, logger *zap.Logger) *Server {
+	exec := newExecutor(cfg)
 
 	chatHandler := handler.NewChatHandler(exec, logger)
 	responsesHandler := handler.NewResponsesHandler(exec, logger)
 	adminHandler := handler.NewAdminHandler(keys)
+	modelsList, modelsById := handler.NewModelsHandlers()
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)
@@ -51,8 +57,8 @@ func NewServer(cfg *config.Config, keys *store.KeyStore, logger *zap.Logger) *Se
 		r.Route("/v1", func(r chi.Router) {
 			r.Post("/chat/completions", chatHandler.ChatCompletions())
 			r.Post("/responses", responsesHandler.Create())
-			r.Get("/models", handler.Models())
-			r.Get("/models/{id}", handler.ModelByID())
+			r.Get("/models", modelsList)
+			r.Get("/models/{id}", modelsById)
 		})
 	})
 

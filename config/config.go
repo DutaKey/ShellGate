@@ -28,10 +28,14 @@ type AuthConfig struct {
 }
 
 type ExecutorConfig struct {
+	Provider string `toml:"provider"` // "codex" (default) | "kimi"
+
 	CodexBinary string        `toml:"codex_binary"`
 	Sandbox     string        `toml:"default_sandbox"`
 	Timeout     time.Duration `toml:"timeout"`
 	WorkingDir  string        `toml:"working_dir"`
+
+	KimiBinary string `toml:"kimi_binary"`
 }
 
 type LoggingConfig struct {
@@ -71,9 +75,11 @@ func defaults() *Config {
 			KeysFile: "keys.json",
 		},
 		Executor: ExecutorConfig{
+			Provider:    "codex",
 			CodexBinary: "codex",
 			Sandbox:     "read-only",
 			Timeout:     120 * time.Second,
+			KimiBinary:  "kimi",
 		},
 		Logging: LoggingConfig{
 			Level:  "info",
@@ -95,11 +101,17 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("SHELLGATE_KEYS_FILE"); v != "" {
 		cfg.Auth.KeysFile = v
 	}
+	if v := os.Getenv("SHELLGATE_EXECUTOR_PROVIDER"); v != "" {
+		cfg.Executor.Provider = v
+	}
 	if v := os.Getenv("SHELLGATE_EXECUTOR_CODEX_BINARY"); v != "" {
 		cfg.Executor.CodexBinary = v
 	}
 	if v := os.Getenv("SHELLGATE_EXECUTOR_SANDBOX"); v != "" {
 		cfg.Executor.Sandbox = v
+	}
+	if v := os.Getenv("SHELLGATE_EXECUTOR_KIMI_BINARY"); v != "" {
+		cfg.Executor.KimiBinary = v
 	}
 	if v := os.Getenv("SHELLGATE_LOG_LEVEL"); v != "" {
 		cfg.Logging.Level = v
