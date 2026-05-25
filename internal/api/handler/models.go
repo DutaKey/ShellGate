@@ -21,8 +21,20 @@ var kimiModels = []types.Model{
 	{ID: "kimi-code/kimi-for-coding", Object: "model", Created: 1700000000, OwnedBy: "moonshot-ai"},
 }
 
+var claudeModels = []types.Model{
+	{ID: "claude-opus-4-7", Object: "model", Created: 1700000000, OwnedBy: "anthropic"},
+	{ID: "claude-sonnet-4-6", Object: "model", Created: 1700000000, OwnedBy: "anthropic"},
+	{ID: "claude-haiku-4-5", Object: "model", Created: 1700000000, OwnedBy: "anthropic"},
+}
+
 // allModels merges models from all configured providers.
-var allModels = append(append([]types.Model{}, codexModels...), kimiModels...)
+var allModels = func() []types.Model {
+	out := make([]types.Model, 0, len(codexModels)+len(kimiModels)+len(claudeModels))
+	out = append(out, codexModels...)
+	out = append(out, kimiModels...)
+	out = append(out, claudeModels...)
+	return out
+}()
 
 // NewModelsHandlers returns (list, byID) handler funcs with all provider models.
 func NewModelsHandlers() (http.HandlerFunc, http.HandlerFunc) {

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -29,10 +30,10 @@ func NewCodexExecutor(binary, sandbox, workingDir string) *CodexExecutor {
 	}
 }
 
-// Stream spawns `codex exec --json <prompt>` and emits CodexItemEvents.
+// Stream spawns `codex exec --json <prompt>` and emits text chunks.
 // Channel closed when process exits or ctx cancelled.
-func (e *CodexExecutor) Stream(ctx context.Context, prompt, model, reasoningEffort string) (<-chan *types.CodexItemEvent, <-chan error) {
-	events := make(chan *types.CodexItemEvent, 32)
+func (e *CodexExecutor) Stream(ctx context.Context, prompt, model, reasoningEffort string) (<-chan string, <-chan error) {
+	events := make(chan string, 32)
 	errc := make(chan error, 1)
 
 	go func() {
@@ -70,9 +71,9 @@ func (e *CodexExecutor) Stream(ctx context.Context, prompt, model, reasoningEffo
 			case "item.completed":
 				var ev types.CodexItemEvent
 				if err := json.Unmarshal([]byte(line), &ev); err == nil {
-					if ev.Item.Type == "agent_message" {
+					if ev.Item.Type == "agent_message" && ev.Item.Text != "" {
 						select {
-						case events <- &ev:
+						case events <- ev.Item.Text:
 						case <-ctx.Done():
 							cmd.Process.Kill()
 							return
@@ -108,8 +109,8 @@ func (e *CodexExecutor) Exec(ctx context.Context, prompt, model, reasoningEffort
 	events, errc := e.Stream(ctx, prompt, model, reasoningEffort)
 
 	var parts []string
-	for ev := range events {
-		parts = append(parts, ev.Item.Text)
+	for text := range events {
+		parts = append(parts, text)
 	}
 
 	if err := <-errc; err != nil {
@@ -141,6 +142,8 @@ func (e *CodexExecutor) buildCmd(ctx context.Context, prompt, model, reasoningEf
 
 	if e.workingDir != "" {
 		cmd.Dir = e.workingDir
+	} else {
+		cmd.Dir = os.TempDir()
 	}
 
 	return cmd

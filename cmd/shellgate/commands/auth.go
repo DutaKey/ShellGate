@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -57,12 +58,42 @@ func checkProviderStatus(name string) providerStatus {
 		}
 		s.Connected = true
 		s.Detail = "authenticated"
+
+	case "claude":
+		p, ok := providers["claude"]
+		if !ok {
+			s.Detail = "unknown provider"
+			return s
+		}
+		if _, err := exec.LookPath(p.binary); err != nil {
+			s.Detail = "not installed"
+			return s
+		}
+		// claude stores OAuth credentials at ~/.claude/.credentials.json
+		home, _ := os.UserHomeDir()
+		credFile := filepath.Join(home, ".claude", ".credentials.json")
+		data, err := os.ReadFile(credFile)
+		if err != nil {
+			s.Detail = "not authenticated"
+			return s
+		}
+		var creds struct {
+			ClaudeAIOauth *struct {
+				AccessToken string `json:"accessToken"`
+			} `json:"claudeAiOauth"`
+		}
+		if err := json.Unmarshal(data, &creds); err != nil || creds.ClaudeAIOauth == nil || creds.ClaudeAIOauth.AccessToken == "" {
+			s.Detail = "not authenticated"
+			return s
+		}
+		s.Connected = true
+		s.Detail = "authenticated"
 	}
 	return s
 }
 
 func allProviderStatuses() []providerStatus {
-	names := []string{"codex", "kimi"}
+	names := []string{"codex", "kimi", "claude"}
 	out := make([]providerStatus, len(names))
 	for i, name := range names {
 		out[i] = checkProviderStatus(name)

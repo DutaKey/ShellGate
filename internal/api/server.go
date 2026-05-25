@@ -26,9 +26,11 @@ type Server struct {
 func newExecutor(cfg *config.Config) executor.Executor {
 	codex := executor.NewCodexExecutor(cfg.Executor.CodexBinary, cfg.Executor.Sandbox, cfg.Executor.WorkingDir)
 	kimi := executor.NewKimiExecutor(cfg.Executor.KimiBinary, cfg.Executor.WorkingDir)
+	claude := executor.NewClaudeExecutor(cfg.Executor.ClaudeBinary, cfg.Executor.WorkingDir)
 
 	return executor.NewRouterExecutor(codex,
 		executor.Route{Prefix: "kimi", Executor: kimi},
+		executor.Route{Prefix: "claude", Executor: claude},
 	)
 }
 

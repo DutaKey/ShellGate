@@ -18,6 +18,8 @@ default_sandbox = "read-only"
 timeout = "120s"
 working_dir = ""
 kimi_binary = "kimi"
+# Claude Code CLI (OAuth — run: shellgate login claude)
+claude_binary = "claude"
 
 [logging]
 level = "info"
