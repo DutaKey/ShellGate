@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build binaries
+        run: |
+          mkdir -p dist
+          GOOS=linux  GOARCH=amd64  go build -ldflags="-s -w" -o dist/shellgate_linux_amd64  ./cmd/shellgate
+          GOOS=linux  GOARCH=arm64  go build -ldflags="-s -w" -o dist/shellgate_linux_arm64  ./cmd/shellgate
+          GOOS=darwin GOARCH=amd64  go build -ldflags="-s -w" -o dist/shellgate_darwin_amd64 ./cmd/shellgate
+          GOOS=darwin GOARCH=arm64  go build -ldflags="-s -w" -o dist/shellgate_darwin_arm64 ./cmd/shellgate
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
