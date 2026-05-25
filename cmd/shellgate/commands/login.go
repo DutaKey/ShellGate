@@ -33,7 +33,7 @@ type providerDef struct {
 func newLoginCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login <provider>",
-		Short: "Authenticate a CLI provider (e.g. codex)",
+		Short: "Authenticate a CLI provider (e.g. codex, kimi)",
 		Long: `Log in to a supported CLI provider so ShellGate can proxy requests through it.
 
 Supported providers:
@@ -44,17 +44,23 @@ Supported providers:
 			name := args[0]
 			p, ok := providers[name]
 			if !ok {
-				return fmt.Errorf("unknown provider %q — run `shellgate login --help` for supported providers", name)
+				return fmt.Errorf("unknown provider %q — supported: codex, kimi", name)
 			}
 
-			// check binary exists
+			// Show current status
+			s := checkProviderStatus(name)
+			icon := "✗"
+			if s.Connected {
+				icon = "✓"
+			}
+			fmt.Printf("Current status: %s %s\n\n", icon, s.Detail)
+
 			if _, err := exec.LookPath(p.binary); err != nil {
 				return fmt.Errorf("%s CLI not found in PATH\nInstall: %s", p.binary, p.installHint)
 			}
 
 			fmt.Printf("Logging in to %s...\n\n", name)
 
-			// passthrough stdin/stdout so OAuth flow works interactively
 			loginCmd := exec.Command(p.binary, p.loginArgs...)
 			loginCmd.Stdin = os.Stdin
 			loginCmd.Stdout = os.Stdout
@@ -64,7 +70,7 @@ Supported providers:
 				return fmt.Errorf("%s login failed: %w", name, err)
 			}
 
-			fmt.Printf("\n%s login successful.\n", name)
+			fmt.Printf("\n✓ %s login successful.\n", name)
 			fmt.Println("\nNext: shellgate serve")
 			return nil
 		},
