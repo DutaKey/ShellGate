@@ -7,20 +7,21 @@ Log in to a CLI tool once. ShellGate proxies any HTTP client through it — no s
 ```
 Your App  →  POST /v1/chat/completions  →  ShellGate  →  codex exec "..."
 (N8N, LangChain, any OpenAI SDK)                      →  kimi --print "..."
+                                                      →  claude -p "..."
                                               ↑
                                         your CLI logins
 ```
 
-Requests route automatically based on model name — use Codex and Kimi simultaneously from the same endpoint.
+Requests route automatically based on model name — use Codex, Kimi, and Claude simultaneously from the same endpoint.
 
 ## Supported Providers
 
-| Provider | CLI | Model prefix | Status |
-|----------|-----|-------------|--------|
-| [OpenAI Codex](https://github.com/openai/codex) | `codex` | `gpt-*` | ✅ Supported |
-| [Kimi CLI](https://moonshotai.github.io/kimi-cli/) | `kimi` | `kimi-*` | ✅ Supported |
-| Antigravity CLI | `agy` | — | 🔜 Planned |
-| Claude CLI | `claude` | — | 🔜 Planned |
+| Provider | CLI | Model prefix | Auth | Status |
+|----------|-----|-------------|------|--------|
+| [OpenAI Codex](https://github.com/openai/codex) | `codex` | `gpt-*` | `codex login` | ✅ Supported |
+| [Kimi CLI](https://moonshotai.github.io/kimi-cli/) | `kimi` | `kimi-*` | `kimi login` | ✅ Supported |
+| [Claude Code](https://github.com/anthropics/claude-code) | `claude` | `claude-*` | `claude login` (OAuth) | ✅ Supported |
+| Antigravity CLI | `agy` | — | — | 🔜 Planned |
 
 ## Install
 
@@ -52,6 +53,7 @@ shellgate init
 # 2. Log in to CLI providers
 shellgate login codex
 shellgate login kimi
+shellgate login claude
 
 # 3. Start the server
 shellgate serve -d          # background
@@ -72,15 +74,16 @@ ShellGate routes each request to the right provider based on model name:
 |-------|----------|
 | `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.3-codex`, `gpt-5.2` | Codex CLI |
 | `kimi-code/kimi-for-coding` | Kimi CLI |
+| `claude-opus-4-7`, `claude-sonnet-4-6`, `claude-haiku-4-5` | Claude Code CLI |
 
-Both providers are always active — no config switch needed.
+All providers are always active — no config switch needed.
 
 ## CLI Reference
 
 ```
 shellgate setup                 Guided first-time setup wizard
 shellgate init                  Create config file interactively
-shellgate login <provider>      Authenticate a CLI provider (shows current auth status)
+shellgate login <provider>      Authenticate a CLI provider (codex, kimi, claude)
 shellgate serve                 Start the API server (foreground)
 shellgate serve -d              Start in background
 shellgate stop                  Stop background server
@@ -116,7 +119,7 @@ Drop-in replacement for the OpenAI API.
 
 ## Usage Examples
 
-**curl:**
+**curl — Codex:**
 ```bash
 curl http://localhost:8080/v1/chat/completions \
   -H "Authorization: Bearer <your-key>" \
@@ -124,12 +127,20 @@ curl http://localhost:8080/v1/chat/completions \
   -d '{"model":"gpt-5.4","messages":[{"role":"user","content":"hello"}]}'
 ```
 
-**Kimi model:**
+**curl — Kimi:**
 ```bash
 curl http://localhost:8080/v1/chat/completions \
   -H "Authorization: Bearer <your-key>" \
   -H "Content-Type: application/json" \
   -d '{"model":"kimi-code/kimi-for-coding","messages":[{"role":"user","content":"hello"}]}'
+```
+
+**curl — Claude:**
+```bash
+curl http://localhost:8080/v1/chat/completions \
+  -H "Authorization: Bearer <your-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"claude-sonnet-4-6","messages":[{"role":"user","content":"hello"}]}'
 ```
 
 **Python (OpenAI SDK):**
@@ -141,6 +152,13 @@ client = OpenAI(
     base_url="http://localhost:8080/v1"
 )
 
+# route to Claude
+response = client.chat.completions.create(
+    model="claude-sonnet-4-6",
+    messages=[{"role": "user", "content": "hello"}]
+)
+
+# route to Codex
 response = client.chat.completions.create(
     model="gpt-5.4",
     messages=[{"role": "user", "content": "hello"}]
@@ -171,6 +189,8 @@ codex_binary = "codex"
 default_sandbox = "read-only"              # read-only | workspace-write | danger-full-access
 timeout = "120s"
 kimi_binary = "kimi"
+claude_binary = "claude"
+working_dir = ""                           # override working dir for all CLI tools
 
 [logging]
 level = "info"    # debug | info | warn | error
@@ -186,6 +206,7 @@ format = "json"   # json | text
 | `SHELLGATE_KEYS_FILE` | `auth.keys_file` |
 | `SHELLGATE_EXECUTOR_CODEX_BINARY` | `executor.codex_binary` |
 | `SHELLGATE_EXECUTOR_KIMI_BINARY` | `executor.kimi_binary` |
+| `SHELLGATE_EXECUTOR_CLAUDE_BINARY` | `executor.claude_binary` |
 | `SHELLGATE_LOG_LEVEL` | `logging.level` |
 
 ## Docker
@@ -196,6 +217,7 @@ docker run -d \
   -v $HOME/.shellgate:/root/.shellgate \
   -v $HOME/.codex:/root/.codex:ro \
   -v $HOME/.kimi:/root/.kimi:ro \
+  -v $HOME/.claude:/root/.claude:ro \
   -e SHELLGATE_ADMIN_SECRET=your-secret \
   ghcr.io/dutakey/shellgate:latest
 ```
