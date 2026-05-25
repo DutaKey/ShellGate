@@ -22,17 +22,22 @@ func newSetupCmd() *cobra.Command {
   4. Start the server in the background`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			printStep(1, "Configure ShellGate")
-			provider, err := runInit(configPath, false)
+			_, err := runInit(configPath, false)
 			if err != nil {
 				return err
 			}
-			if provider == "" {
-				return nil // user aborted
-			}
 
-			printStep(2, fmt.Sprintf("Login to %s", provider))
-			if err := runProviderLogin(provider); err != nil {
-				return err
+			printStep(2, "Login to CLI providers")
+			fmt.Println("Login to the providers you want to use.")
+			fmt.Println("(Press Ctrl+C to skip a provider)")
+			fmt.Println()
+			for _, name := range []string{"codex", "kimi"} {
+				fmt.Printf("Login %s? [y/N] ", name)
+				var answer string
+				fmt.Scanln(&answer)
+				if answer == "y" || answer == "Y" {
+					_ = runProviderLogin(name)
+				}
 			}
 
 			printStep(3, "Create your first API key")
@@ -59,9 +64,9 @@ func newSetupCmd() *cobra.Command {
 			fmt.Println()
 			fmt.Printf("  API endpoint: http://localhost:%d/v1\n", port)
 			fmt.Printf("  API key:      %s\n", key)
-			fmt.Printf("  Provider:     %s\n", provider)
+			fmt.Println("  Providers:    codex + kimi (route by model)")
 			fmt.Println()
-			fmt.Println("  Example:")
+			fmt.Println("  Example (Codex):")
 			fmt.Printf("    curl http://localhost:%d/v1/chat/completions \\\n", port)
 			fmt.Println("      -H \"Content-Type: application/json\" \\")
 			fmt.Printf("      -H \"Authorization: Bearer %s\" \\\n", key)

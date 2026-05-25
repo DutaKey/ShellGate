@@ -24,8 +24,6 @@ admin_secret = "{{.AdminSecret}}"
 keys_file = "{{.KeysFile}}"
 
 [executor]
-# Provider to use: "codex" or "kimi"
-provider = "{{.Provider}}"
 codex_binary = "codex"
 default_sandbox = "read-only"
 timeout = "120s"
@@ -63,13 +61,6 @@ func runInit(cfgPath string, skipExistsCheck bool) (string, error) {
 
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Provider [codex/kimi] (default: codex): ")
-	provider, _ := reader.ReadString('\n')
-	provider = strings.ToLower(strings.TrimSpace(provider))
-	if provider == "" || (provider != "codex" && provider != "kimi") {
-		provider = "codex"
-	}
-
 	fmt.Print("Port [8080]: ")
 	portStr, _ := reader.ReadString('\n')
 	portStr = strings.TrimSpace(portStr)
@@ -102,18 +93,17 @@ func runInit(cfgPath string, skipExistsCheck bool) (string, error) {
 	if err := tmpl.Execute(f, map[string]string{
 		"Port":        portStr,
 		"AdminSecret": secret,
-		"Provider":    provider,
 		"KeysFile":    keysFile,
 	}); err != nil {
 		return "", fmt.Errorf("write config: %w", err)
 	}
 
 	fmt.Printf("\nConfig written to %s\n", cfgPath)
-	fmt.Printf("Admin secret: %s\n", secret)
-	fmt.Printf("Provider:     %s\n\n", provider)
+	fmt.Printf("Admin secret: %s\n\n", secret)
 	fmt.Println("Next steps:")
-	fmt.Printf("  shellgate login %s   # authenticate your CLI provider\n", provider)
-	fmt.Println("  shellgate serve      # start the API server")
+	fmt.Println("  shellgate login codex   # authenticate Codex CLI")
+	fmt.Println("  shellgate login kimi    # authenticate Kimi CLI")
+	fmt.Println("  shellgate serve         # start the API server")
 
-	return provider, nil
+	return "", nil
 }

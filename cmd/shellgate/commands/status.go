@@ -42,8 +42,8 @@ func newStatusCmd() *cobra.Command {
 			if err != nil {
 				fmt.Printf("          (cannot load: %s)\n", err)
 			} else {
-				fmt.Printf("Provider: %s\n", cfg.Executor.Provider)
 				fmt.Printf("Port:     %d\n", cfg.Server.Port)
+				fmt.Println("Providers: codex, kimi")
 
 				if ks, err := store.NewKeyStore(cfg.Auth.KeysFile); err == nil {
 					fmt.Printf("Keys:     %d active\n", len(ks.List()))

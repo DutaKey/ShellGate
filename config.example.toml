@@ -12,14 +12,11 @@ admin_secret = "change-me-admin-secret"
 keys_file = "keys.json"
 
 [executor]
-# Provider to use: "codex" (default) or "kimi"
-provider = "codex"
 codex_binary = "codex"
-# read-only | workspace-write | danger-full-access (codex only)
+# read-only | workspace-write | danger-full-access
 default_sandbox = "read-only"
 timeout = "120s"
 working_dir = ""
-# Kimi CLI settings (only used when provider = "kimi")
 kimi_binary = "kimi"
 
 [logging]
