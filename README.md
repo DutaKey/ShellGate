@@ -1,5 +1,9 @@
 # ShellGate
 
+[![Latest Release](https://img.shields.io/github/v/release/DutaKey/ShellGate?style=flat-square)](https://github.com/DutaKey/ShellGate/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![Go](https://img.shields.io/badge/go-1.23-00ADD8?style=flat-square&logo=go)](go.mod)
+
 Turn locally authenticated CLI tools into an OpenAI-compatible REST API.
 
 Log in to a CLI tool once. ShellGate proxies any HTTP client through it — no separate API keys, no extra billing accounts.
